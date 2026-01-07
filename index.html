@@ -442,11 +442,99 @@
                 btns.forEach(b => { document.getElementById('b-' + b).disabled = state.score < state.costs[b]; });
             } 
         }, 1000);
+// --- СЕКЦИЯ СОХРАНЕНИЯ ---
 
-        // Автосохранение раз в 15 секунд
+        // 1. Автосохранение каждые 5 секунд (пока игрок в игре)
         setInterval(saveState, 5000);
 
-        // ЗАПУСК
+        // 2. Функция для экстренного сохранения при закрытии (использует keepalive)
+        function saveOnExit() {
+            const body = JSON.stringify({
+                id: userId,
+                score: state.score,
+                click_power: state.cp,
+                pps: state.pps,
+                costs: state.costs,
+                unlocked_colors: state.unlockedColors,
+                current_color: state.currentColor,
+                max_limit: state.maxLimit,
+                clicks_left: state.clicksLeft,
+                last_date: state.lastDate
+            });
+
+            // keepalive: true позволяет запросу завершиться после закрытия вкладки
+            fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'resolution=merge-duplicates'
+                },
+                body: body,
+                keepalive: true 
+            }).catch(e => console.error("Exit save failed", e));
+        }
+
+        // 3. Событие: Игрок свернул приложение или переключил вкладку (лучшее для мобилок)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                saveState(); 
+            }
+        });
+
+        // 4. Событие: Игрок закрыл вкладку (для ПК и некоторых браузеров)
+        window.addEventListener('beforeunload', () => {
+            saveOnExit();
+        });
+
+// --- СЕКЦИЯ СОХРАНЕНИЯ ---
+
+        // 1. Автосохранение каждые 5 секунд (пока игрок в игре)
+        setInterval(saveState, 5000);
+
+        // 2. Функция для экстренного сохранения при закрытии (использует keepalive)
+        function saveOnExit() {
+            const body = JSON.stringify({
+                id: userId,
+                score: state.score,
+                click_power: state.cp,
+                pps: state.pps,
+                costs: state.costs,
+                unlocked_colors: state.unlockedColors,
+                current_color: state.currentColor,
+                max_limit: state.maxLimit,
+                clicks_left: state.clicksLeft,
+                last_date: state.lastDate
+            });
+
+            // keepalive: true позволяет запросу завершиться после закрытия вкладки
+            fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'resolution=merge-duplicates'
+                },
+                body: body,
+                keepalive: true 
+            }).catch(e => console.error("Exit save failed", e));
+        }
+
+        // 3. Событие: Игрок свернул приложение или переключил вкладку (лучшее для мобилок)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                saveState(); 
+            }
+        });
+
+        // 4. Событие: Игрок закрыл вкладку (для ПК и некоторых браузеров)
+        window.addEventListener('beforeunload', () => {
+            saveOnExit();
+        });
+
+        // --- ЗАПУСК ИГРЫ ---
         loadData();
     </script>
 </body>
