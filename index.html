@@ -369,31 +369,39 @@
             });
         }
 
+        // --- ЛОГИКА КЛИКА ---
         function handleInteraction(e) {
             if (e.cancelable) e.preventDefault();
             const now = Date.now();
             if (now - lastClickTime < 45) return; 
             lastClickTime = now;
+
             const clientX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
             const clientY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+
             if (state.clicksLeft <= 0) {
                 spawnPop(clientX, clientY, 'ЛИМИТ!', 'crit-text');
                 return;
             }
+
             nugget.classList.remove('click-active');
             nugget.style.setProperty('--tilt', (Math.random() * 20 - 10) + 'deg');
             void nugget.offsetWidth; 
             nugget.classList.add('click-active');
             setTimeout(() => nugget.classList.remove('click-active'), 50);
+
             if(clickSound.paused || clickSound.currentTime > 0) {
                 clickSound.currentTime = 0;
                 clickSound.play().catch(() => {});
             }
+
             if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+
             let isCrit = Math.random() < 0.1;
             let val = isCrit ? state.cp * 5 : state.cp;
             state.score += val;
             state.clicksLeft--;
+
             spawnPop(clientX, clientY, (isCrit ? '🔥 X5' : '+' + val), (isCrit ? 'crit-text' : 'norm-text'));
             updateUI();
         }
@@ -411,27 +419,20 @@
         nugget.addEventListener('touchstart', handleInteraction, {passive: false});
         nugget.addEventListener('mousedown', (e) => { if (e.button === 0) handleInteraction(e); });
 
-        document.getElementById('b-c1').onclick = () => {
-            if(state.score >= state.costs.c1) {
-                state.score -= state.costs.c1; state.cp += 1;
-                state.costs.c1 = Math.round(state.costs.c1 * 1.6);
-                updateUI(); saveState();
+        // --- МАГАЗИН ---
+        document.getElementById('b-c1').onclick = () => buyUpgrade('c1', 'cp', 1, 1.6);
+        document.getElementById('b-a1').onclick = () => buyUpgrade('a1', 'pps', 1, 1.6);
+        document.getElementById('b-l1').onclick = () => buyUpgrade('l1', 'maxLimit', 500, 2.2);
+
+        function buyUpgrade(id, stat, add, mult) {
+            if(state.score >= state.costs[id]) {
+                state.score -= state.costs[id];
+                state[stat] += add;
+                state.costs[id] = Math.round(state.costs[id] * mult);
+                updateUI();
+                saveState();
             }
-        };
-        document.getElementById('b-a1').onclick = () => {
-            if(state.score >= state.costs.a1) {
-                state.score -= state.costs.a1; state.pps += 1;
-                state.costs.a1 = Math.round(state.costs.a1 * 1.6);
-                updateUI(); saveState();
-            }
-        };
-        document.getElementById('b-l1').onclick = () => {
-            if(state.score >= state.costs.l1) {
-                state.score -= state.costs.l1; state.maxLimit += LIMIT_STEP;
-                state.costs.l1 = Math.round(state.costs.l1 * 2.2);
-                updateUI(); saveState();
-            }
-        };
+        }
 
         ['bg0', 'bg1', 'bg2', 'bg3'].forEach(id => {
             document.getElementById('b-' + id).onclick = () => {
@@ -440,96 +441,57 @@
                 if (state.unlockedColors[id]) {
                     state.currentColor = colors[id];
                 } else if (state.score >= price) {
-                    state.score -= price; state.unlockedColors[id] = true;
+                    state.score -= price; 
+                    state.unlockedColors[id] = true;
                     state.currentColor = colors[id];
                 }
-                updateUI(); saveState();
+                updateUI();
+                saveState();
             };
         });
 
+        // Авто-майнинг раз в секунду
         setInterval(() => { 
             if(state.pps > 0) { 
                 state.score += state.pps; 
                 document.getElementById('score').textContent = Math.floor(state.score).toLocaleString();
-                const btns = ['c1', 'a1', 'l1'];
-                btns.forEach(b => { document.getElementById('b-' + b).disabled = state.score < state.costs[b]; });
             } 
         }, 1000);
-// --- СЕКЦИЯ СОХРАНЕНИЯ ---
 
-        // 1. Автосохранение каждые 5 секунд (пока игрок в игре)
-        setInterval(saveState, 5000);
+        // --- ФИНАЛЬНАЯ СИСТЕМА СОХРАНЕНИЯ (ИСПРАВЛЕННАЯ) ---
 
-        // 2. Функция для экстренного сохранения при закрытии (использует keepalive)
-        function saveOnExit() {
-            const body = JSON.stringify({
+        async function saveState() {
+            const dataToSave = {
                 id: userId,
-                score: state.score,
+                score: Math.floor(state.score),
                 click_power: state.cp,
                 pps: state.pps,
                 costs: state.costs,
                 unlocked_colors: state.unlockedColors,
                 current_color: state.currentColor,
                 max_limit: state.maxLimit,
-                clicks_left: state.clicksLeft,
+                clicks_left: Math.floor(state.clicksLeft),
                 last_date: state.lastDate
-            });
+            };
 
-            // keepalive: true позволяет запросу завершиться после закрытия вкладки
-            fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
-                method: 'POST',
-                headers: {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'resolution=merge-duplicates'
-                },
-                body: body,
-                keepalive: true 
-            }).catch(e => console.error("Exit save failed", e));
-        }
-
-        // 3. Событие: Игрок свернул приложение или переключил вкладку (лучшее для мобилок)
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden') {
-                saveState(); 
-            }
-        });
-
-        // 4. Событие: Игрок закрыл вкладку (для ПК и некоторых браузеров)
-        window.addEventListener('beforeunload', () => {
-            saveOnExit();
-        });
-
-// --- ОБНОВЛЕННАЯ СИСТЕМА СОХРАНЕНИЯ ---
-
-        // Основная функция сохранения (UPSERT)
-        async function saveState() {
             try {
-                const { error } = await supabaseClient
-                    .from('profiles')
-                    .upsert({
-                        id: userId,
-                        score: Math.floor(state.score),
-                        click_power: state.cp,
-                        pps: state.pps,
-                        costs: state.costs,
-                        unlocked_colors: state.unlockedColors,
-                        current_color: state.currentColor,
-                        max_limit: state.maxLimit,
-                        clicks_left: Math.floor(state.clicksLeft),
-                        last_date: state.lastDate,
-                        updated_at: new Date().toISOString()
-                    }, { onConflict: 'id' });
-
-                if (error) throw error;
-                console.log("Данные сохранены в Supabase");
+                // Используем стандартный fetch для сохранения, он надежнее в связке с Supabase REST
+                await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+                    method: 'PATCH', // PATCH обновляет только существующую строку
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify(dataToSave)
+                });
+                console.log("Auto-save done");
             } catch (e) {
-                console.error("Ошибка сохранения:", e.message);
+                console.error("Save error:", e);
             }
         }
 
-        // Функция для сохранения ПРИ ВЫХОДЕ (использует fetch + keepalive)
         function saveOnExit() {
             const body = JSON.stringify({
                 id: userId,
@@ -544,7 +506,9 @@
                 last_date: state.lastDate
             });
 
-            // Этот запрос долетит до базы, даже если вкладка закрылась
+            // Ключевой момент: keepalive + метод POST с заголовком merge-duplicates
+            navigator.sendBeacon(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, body); 
+            // Если sendBeacon не поддерживается, используем fetch
             fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
                 method: 'POST',
                 headers: {
@@ -554,28 +518,19 @@
                     'Prefer': 'resolution=merge-duplicates'
                 },
                 body: body,
-                keepalive: true 
+                keepalive: true
             });
         }
 
-        // --- СОБЫТИЯ И ИНТЕРВАЛЫ ---
+        setInterval(saveState, 10000); // Сохраняем раз в 10 сек
 
-        // Сохранение каждые 5 секунд
-        setInterval(saveState, 5000);
-
-        // Сохранение при сворачивании (для мобилок)
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') saveState();
         });
 
-        // Сохранение при закрытии (для ПК)
-        window.addEventListener('beforeunload', saveOnExit);
+        window.addEventListener('pagehide', saveOnExit); // Более надежно для мобильных браузеров
 
-        // ЗАПУСК ИГРЫ
-        loadData();
-    </script>
-</body>
-</html>
+        loadData(); // Самый важный вызов в конце
     </script>
 </body>
 </html>
