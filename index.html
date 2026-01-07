@@ -73,11 +73,24 @@
             position: relative; overflow: hidden;
         }
 
-        .rays {
-            position: absolute; width: 800px; height: 800px; 
-            background: repeating-conic-gradient(from 0deg, rgba(255,111,0,0.05) 0deg 15deg, transparent 15deg 30deg);
-            animation: spin 40s linear infinite; pointer-events: none;
-        }
+   .rays {
+    position: absolute; 
+    width: 150%; /* Увеличили размер, чтобы края не обрезались */
+    height: 150%; 
+    /* Добавили размытие между 10% и 20% для мягкости */
+    background: repeating-conic-gradient(
+        from 0deg, 
+        rgba(255, 111, 0, 0.07) 0deg, 
+        rgba(255, 111, 0, 0.07) 10deg, 
+        transparent 20deg, 
+        transparent 30deg
+    );
+    /* Добавляем мягкое размытие по краям самих лучей */
+    filter: blur(20px); 
+    animation: spin 60s linear infinite; 
+    pointer-events: none;
+    opacity: 0.6; /* Сделали чуть прозрачнее для глубины */
+}
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
         #nugget-btn {
