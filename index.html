@@ -488,27 +488,50 @@
             saveOnExit();
         });
 
-// --- СЕКЦИЯ СОХРАНЕНИЯ ---
+// --- ОБНОВЛЕННАЯ СИСТЕМА СОХРАНЕНИЯ ---
 
-        // 1. Автосохранение каждые 5 секунд (пока игрок в игре)
-        setInterval(saveState, 5000);
+        // Основная функция сохранения (UPSERT)
+        async function saveState() {
+            try {
+                const { error } = await supabaseClient
+                    .from('profiles')
+                    .upsert({
+                        id: userId,
+                        score: Math.floor(state.score),
+                        click_power: state.cp,
+                        pps: state.pps,
+                        costs: state.costs,
+                        unlocked_colors: state.unlockedColors,
+                        current_color: state.currentColor,
+                        max_limit: state.maxLimit,
+                        clicks_left: Math.floor(state.clicksLeft),
+                        last_date: state.lastDate,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'id' });
 
-        // 2. Функция для экстренного сохранения при закрытии (использует keepalive)
+                if (error) throw error;
+                console.log("Данные сохранены в Supabase");
+            } catch (e) {
+                console.error("Ошибка сохранения:", e.message);
+            }
+        }
+
+        // Функция для сохранения ПРИ ВЫХОДЕ (использует fetch + keepalive)
         function saveOnExit() {
             const body = JSON.stringify({
                 id: userId,
-                score: state.score,
+                score: Math.floor(state.score),
                 click_power: state.cp,
                 pps: state.pps,
                 costs: state.costs,
                 unlocked_colors: state.unlockedColors,
                 current_color: state.currentColor,
                 max_limit: state.maxLimit,
-                clicks_left: state.clicksLeft,
+                clicks_left: Math.floor(state.clicksLeft),
                 last_date: state.lastDate
             });
 
-            // keepalive: true позволяет запросу завершиться после закрытия вкладки
+            // Этот запрос долетит до базы, даже если вкладка закрылась
             fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
                 method: 'POST',
                 headers: {
@@ -519,23 +542,27 @@
                 },
                 body: body,
                 keepalive: true 
-            }).catch(e => console.error("Exit save failed", e));
+            });
         }
 
-        // 3. Событие: Игрок свернул приложение или переключил вкладку (лучшее для мобилок)
+        // --- СОБЫТИЯ И ИНТЕРВАЛЫ ---
+
+        // Сохранение каждые 5 секунд
+        setInterval(saveState, 5000);
+
+        // Сохранение при сворачивании (для мобилок)
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden') {
-                saveState(); 
-            }
+            if (document.visibilityState === 'hidden') saveState();
         });
 
-        // 4. Событие: Игрок закрыл вкладку (для ПК и некоторых браузеров)
-        window.addEventListener('beforeunload', () => {
-            saveOnExit();
-        });
+        // Сохранение при закрытии (для ПК)
+        window.addEventListener('beforeunload', saveOnExit);
 
-        // --- ЗАПУСК ИГРЫ ---
+        // ЗАПУСК ИГРЫ
         loadData();
+    </script>
+</body>
+</html>
     </script>
 </body>
 </html>
