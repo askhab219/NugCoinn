@@ -73,24 +73,22 @@
             position: relative; overflow: hidden;
         }
 
-   .rays {
-    position: absolute; 
-    width: 150%; /* Увеличили размер, чтобы края не обрезались */
-    height: 150%; 
-    /* Добавили размытие между 10% и 20% для мягкости */
-    background: repeating-conic-gradient(
-        from 0deg, 
-        rgba(255, 111, 0, 0.07) 0deg, 
-        rgba(255, 111, 0, 0.07) 10deg, 
-        transparent 20deg, 
-        transparent 30deg
-    );
-    /* Добавляем мягкое размытие по краям самих лучей */
-    filter: blur(20px); 
-    animation: spin 60s linear infinite; 
-    pointer-events: none;
-    opacity: 0.6; /* Сделали чуть прозрачнее для глубины */
-}
+        .rays {
+            position: absolute; 
+            width: 150%; 
+            height: 150%; 
+            background: repeating-conic-gradient(
+                from 0deg, 
+                rgba(255, 111, 0, 0.07) 0deg, 
+                rgba(255, 111, 0, 0.07) 10deg, 
+                transparent 20deg, 
+                transparent 30deg
+            );
+            filter: blur(20px); 
+            animation: spin 60s linear infinite; 
+            pointer-events: none;
+            opacity: 0.6;
+        }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
         #nugget-btn {
@@ -245,7 +243,7 @@
     </div>
 
     <script>
-        // 1. ИНИЦИАЛИЗАЦИЯ TELEGRAM И SUPABASE
+        // 1. ИНИЦИАЛИЗАЦИЯ
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
@@ -259,8 +257,7 @@
         const clickSound = new Audio('https://www.soundjay.com/buttons/sounds/button-37a.mp3');
         clickSound.volume = 0.3;
 
-        const INITIAL_LIMIT = 1000;
-        const LIMIT_STEP = 500;
+        const nugget = document.getElementById('nugget-btn');
         let lastClickTime = 0; 
 
         let state = {
@@ -270,22 +267,21 @@
             costs: { c1: 15, a1: 50, l1: 200 },
             unlockedColors: { bg0: true, bg1: false, bg2: false, bg3: false },
             currentColor: '#1a160a',
-            maxLimit: INITIAL_LIMIT,
-            clicksLeft: INITIAL_LIMIT,
+            maxLimit: 1000,
+            clicksLeft: 1000,
             lastDate: new Date().toDateString()
         };
 
         const colors = { bg0: '#1a160a', bg1: '#004d26', bg2: '#003366', bg3: '#4a0066' };
-        const nugget = document.getElementById('nugget-btn');
 
-        // 2. ФУНКЦИИ ОБЛАЧНОГО СОХРАНЕНИЯ
+        // 2. ФУНКЦИИ СОХРАНЕНИЯ (Исправленные)
         async function loadData() {
             try {
                 const { data, error } = await supabaseClient
                     .from('profiles')
                     .select('*')
                     .eq('id', userId)
-                    .single();
+                    .maybeSingle(); // Используем maybeSingle вместо single
 
                 if (data) {
                     state = {
@@ -297,30 +293,44 @@
                         currentColor: data.current_color,
                         maxLimit: Number(data.max_limit),
                         clicksLeft: Number(data.clicks_left),
-                        lastDate: data.last_date
+                        lastDate: data.last_date || new Date().toDateString()
                     };
                 } else {
-                    await supabaseClient.from('profiles').insert([{ id: userId }]);
+                    // Если игрока нет, создаем его через upsert
+                    await saveState();
                 }
-            } catch (e) { console.error("Load error:", e); }
+            } catch (e) { console.error("Ошибка загрузки:", e); }
             updateUI();
         }
 
         async function saveState() {
+            const dataToSave = {
+                id: userId,
+                score: Math.floor(state.score),
+                click_power: state.cp,
+                pps: state.pps,
+                costs: state.costs,
+                unlocked_colors: state.unlockedColors,
+                current_color: state.currentColor,
+                max_limit: state.maxLimit,
+                clicks_left: Math.floor(state.clicksLeft),
+                last_date: state.lastDate,
+                updated_at: new Date().toISOString()
+            };
+
             try {
-                await supabaseClient.from('profiles').upsert({
-                    id: userId,
-                    score: state.score,
-                    click_power: state.cp,
-                    pps: state.pps,
-                    costs: state.costs,
-                    unlocked_colors: state.unlockedColors,
-                    current_color: state.currentColor,
-                    max_limit: state.maxLimit,
-                    clicks_left: state.clicksLeft,
-                    last_date: state.lastDate
-                });
-            } catch (e) { console.error("Save error:", e); }
+                // Используем upsert для надежности
+                await supabaseClient.from('profiles').upsert(dataToSave, { onConflict: 'id' });
+            } catch (e) {
+                console.error("Ошибка сохранения:", e);
+            }
+        }
+
+        // 3. ИНТЕРФЕЙС И ЛОГИКА
+        function toggleShop() {
+            const shop = document.getElementById('shop');
+            const isOpen = shop.classList.toggle('open');
+            document.querySelector('.shop-header').textContent = isOpen ? '▼ ЗАКРЫТЬ ▼' : '▲ МАГАЗИН ▲';
         }
 
         function checkDailyReset() {
@@ -330,12 +340,6 @@
                 state.lastDate = today;
                 saveState();
             }
-        }
-
-        function toggleShop() {
-            const shop = document.getElementById('shop');
-            const isOpen = shop.classList.toggle('open');
-            document.querySelector('.shop-header').textContent = isOpen ? '▼ ЗАКРЫТЬ ▼' : '▲ МАГАЗИН ▲';
         }
 
         function updateUI() {
@@ -349,6 +353,7 @@
             document.getElementById('p-a1').textContent = state.costs.a1;
             document.getElementById('p-l1').textContent = state.costs.l1;
             document.body.style.backgroundColor = state.currentColor;
+            
             document.getElementById('b-c1').disabled = state.score < state.costs.c1;
             document.getElementById('b-a1').disabled = state.score < state.costs.a1;
             document.getElementById('b-l1').disabled = state.score < state.costs.l1;
@@ -369,7 +374,6 @@
             });
         }
 
-        // --- ЛОГИКА КЛИКА ---
         function handleInteraction(e) {
             if (e.cancelable) e.preventDefault();
             const now = Date.now();
@@ -388,8 +392,7 @@
             nugget.style.setProperty('--tilt', (Math.random() * 20 - 10) + 'deg');
             void nugget.offsetWidth; 
             nugget.classList.add('click-active');
-            setTimeout(() => nugget.classList.remove('click-active'), 50);
-
+            
             if(clickSound.paused || clickSound.currentTime > 0) {
                 clickSound.currentTime = 0;
                 clickSound.play().catch(() => {});
@@ -416,14 +419,6 @@
             setTimeout(() => p.remove(), 600);
         }
 
-        nugget.addEventListener('touchstart', handleInteraction, {passive: false});
-        nugget.addEventListener('mousedown', (e) => { if (e.button === 0) handleInteraction(e); });
-
-        // --- МАГАЗИН ---
-        document.getElementById('b-c1').onclick = () => buyUpgrade('c1', 'cp', 1, 1.6);
-        document.getElementById('b-a1').onclick = () => buyUpgrade('a1', 'pps', 1, 1.6);
-        document.getElementById('b-l1').onclick = () => buyUpgrade('l1', 'maxLimit', 500, 2.2);
-
         function buyUpgrade(id, stat, add, mult) {
             if(state.score >= state.costs[id]) {
                 state.score -= state.costs[id];
@@ -433,6 +428,14 @@
                 saveState();
             }
         }
+
+        // --- СОБЫТИЯ ---
+        nugget.addEventListener('touchstart', handleInteraction, {passive: false});
+        nugget.addEventListener('mousedown', (e) => { if (e.button === 0) handleInteraction(e); });
+
+        document.getElementById('b-c1').onclick = () => buyUpgrade('c1', 'cp', 1, 1.6);
+        document.getElementById('b-a1').onclick = () => buyUpgrade('a1', 'pps', 1, 1.6);
+        document.getElementById('b-l1').onclick = () => buyUpgrade('l1', 'maxLimit', 500, 2.2);
 
         ['bg0', 'bg1', 'bg2', 'bg3'].forEach(id => {
             document.getElementById('b-' + id).onclick = () => {
@@ -450,7 +453,7 @@
             };
         });
 
-        // Авто-майнинг раз в секунду
+        // Таймеры
         setInterval(() => { 
             if(state.pps > 0) { 
                 state.score += state.pps; 
@@ -458,79 +461,14 @@
             } 
         }, 1000);
 
-        // --- ФИНАЛЬНАЯ СИСТЕМА СОХРАНЕНИЯ (ИСПРАВЛЕННАЯ) ---
-
-        async function saveState() {
-            const dataToSave = {
-                id: userId,
-                score: Math.floor(state.score),
-                click_power: state.cp,
-                pps: state.pps,
-                costs: state.costs,
-                unlocked_colors: state.unlockedColors,
-                current_color: state.currentColor,
-                max_limit: state.maxLimit,
-                clicks_left: Math.floor(state.clicksLeft),
-                last_date: state.lastDate
-            };
-
-            try {
-                // Используем стандартный fetch для сохранения, он надежнее в связке с Supabase REST
-                await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
-                    method: 'PATCH', // PATCH обновляет только существующую строку
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=minimal'
-                    },
-                    body: JSON.stringify(dataToSave)
-                });
-                console.log("Auto-save done");
-            } catch (e) {
-                console.error("Save error:", e);
-            }
-        }
-
-        function saveOnExit() {
-            const body = JSON.stringify({
-                id: userId,
-                score: Math.floor(state.score),
-                click_power: state.cp,
-                pps: state.pps,
-                costs: state.costs,
-                unlocked_colors: state.unlockedColors,
-                current_color: state.currentColor,
-                max_limit: state.maxLimit,
-                clicks_left: Math.floor(state.clicksLeft),
-                last_date: state.lastDate
-            });
-
-            // Ключевой момент: keepalive + метод POST с заголовком merge-duplicates
-            navigator.sendBeacon(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, body); 
-            // Если sendBeacon не поддерживается, используем fetch
-            fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
-                method: 'POST',
-                headers: {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'resolution=merge-duplicates'
-                },
-                body: body,
-                keepalive: true
-            });
-        }
-
-        setInterval(saveState, 10000); // Сохраняем раз в 10 сек
+        setInterval(saveState, 10000); // Авто-сейв раз в 10 сек
 
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') saveState();
         });
 
-        window.addEventListener('pagehide', saveOnExit); // Более надежно для мобильных браузеров
-
-        loadData(); // Самый важный вызов в конце
+        // СТАРТ
+        loadData();
     </script>
 </body>
 </html>
