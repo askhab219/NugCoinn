@@ -255,7 +255,7 @@
 
         const nugget = document.getElementById('nugget-btn');
         let lastClickTime = 0; 
-        let sessionClicks = 0; // Счетчик для частого сохранения
+        let saveTimeout = null; // Для умного сохранения
 
         let state = {
             score: 0,
@@ -315,8 +315,13 @@
 
             try {
                 await supabaseClient.from('profiles').upsert(dataToSave, { onConflict: 'id' });
-                sessionClicks = 0; // Сбрасываем локальный счетчик после успешного сейва
             } catch (e) { console.error("Save Error:", e); }
+        }
+
+        // Умное сохранение (через 1 сек после последнего клика)
+        function triggerSmartSave() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(saveState, 1000); 
         }
 
         function toggleShop() {
@@ -352,8 +357,8 @@
 
             ['bg0', 'bg1', 'bg2', 'bg3'].forEach(id => {
                 const btn = document.getElementById('b-' + id);
-                const priceLabel = document.getElementById('p-' + id);
                 if (state.unlockedColors[id]) {
+                    const priceLabel = document.getElementById('p-' + id);
                     if(priceLabel) priceLabel.style.display = 'none';
                     const isActive = state.currentColor === colors[id];
                     btn.textContent = isActive ? 'АКТИВЕН' : 'ВЫБРАТЬ';
@@ -401,11 +406,7 @@
             state.score += val;
             state.clicksLeft--;
             
-            // Логика частого сохранения:
-            sessionClicks++;
-            if (sessionClicks >= 50) {
-                saveState(); // Сохраняем каждые 50 кликов
-            }
+            triggerSmartSave(); // Пытаемся сохранить после каждого клика
 
             spawnPop(clientX, clientY, (isCrit ? '🔥 X5' : '+' + val), (isCrit ? 'crit-text' : 'norm-text'));
             updateUI();
@@ -461,7 +462,7 @@
             } 
         }, 1000);
 
-        setInterval(saveState, 8000); // Немного ускорили таймер до 8 сек
+        setInterval(saveState, 15000); // Редкий фоновый сейв
 
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') saveState();
