@@ -32,6 +32,30 @@
             transition: background-color 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
+        /* Кнопка ручного сохранения */
+        .manual-save-btn {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            z-index: 1000;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            color: var(--primary);
+            font-size: 10px;
+            font-weight: bold;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s;
+            width: auto;
+            cursor: pointer;
+        }
+        .manual-save-btn:active {
+            transform: scale(0.9);
+            background: var(--primary);
+            color: black;
+        }
+
         .bg-glow {
             position: fixed; top: 0; left: 0;
             width: 100%; height: 100%;
@@ -165,6 +189,8 @@
     </style>
 </head>
 <body>
+
+    <button class="manual-save-btn" id="manual-save" onclick="handleManualSave()">СОХРАНИТЬ</button>
 
     <div class="bg-glow"></div>
 
@@ -318,9 +344,29 @@
             } catch (e) { console.error("Save Error:", e); }
         }
 
+        async function handleManualSave() {
+            const btn = document.getElementById('manual-save');
+            const originalText = btn.textContent;
+            btn.textContent = '...';
+            btn.disabled = true;
+
+            await saveState();
+
+            btn.textContent = 'ГОТОВО!';
+            btn.style.borderColor = '#4caf50';
+            btn.style.color = '#4caf50';
+
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.style.borderColor = 'var(--primary)';
+                btn.style.color = 'var(--primary)';
+                btn.disabled = false;
+            }, 2000);
+        }
+
         function triggerSmartSave() {
             if (saveTimeout) clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(saveState, 800); // Умная пауза 0.8 сек перед сохранением
+            saveTimeout = setTimeout(saveState, 800); 
         }
 
         function toggleShop() {
@@ -454,12 +500,11 @@
             };
         });
 
-        // ИСПРАВЛЕННЫЙ ТАЙМЕР: Добавлено сохранение авто-дохода
         setInterval(() => { 
             if(state.pps > 0) { 
                 state.score += state.pps; 
                 document.getElementById('score').textContent = Math.floor(state.score).toLocaleString();
-                triggerSmartSave(); // Сохраняем каждое начисление авто-дохода
+                triggerSmartSave(); 
             } 
         }, 1000);
 
