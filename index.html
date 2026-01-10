@@ -244,233 +244,49 @@
         </div>
     </div>
 
-    <script>
-        // 1. ИНИЦИАЛИЗАЦИЯ TELEGRAM И SUPABASE
-        const tg = window.Telegram.WebApp;
-        tg.ready();
-        tg.expand();
+    <script>     
+        // 1. ИНИЦИАЛИЗАЦИЯ
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
 
-        const SUPABASE_URL = 'https://rabyyuzbpyerhoqdhrsj.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_3hR7ylEPMc1qBu6nuBdqsQ_9_w5ohOS';
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL = 'https://rabyyuzbpyerhoqdhrsj.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_3hR7ylEPMc1qBu6nuBdqsQ_9_w5ohOS'; 
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const userId = tg.initDataUnsafe?.user?.id?.toString() || "local_player";
+const userId = tg.initDataUnsafe?.user?.id?.toString() || "local_player";
 
-        const clickSound = new Audio('https://www.soundjay.com/buttons/sounds/button-37a.mp3');
-        clickSound.volume = 0.3;
+const clickSound = new Audio('https://www.soundjay.com/buttons/sounds/button-37a.mp3');
+clickSound.volume = 0.3;
 
-        const INITIAL_LIMIT = 1000;
-        const LIMIT_STEP = 500;
-        let lastClickTime = 0; 
+const INITIAL_LIMIT = 1000;
+let lastClickTime = 0; 
 
-        let state = {
-            score: 0,
-            cp: 1,
-            pps: 0,
-            costs: { c1: 15, a1: 50, l1: 200 },
-            unlockedColors: { bg0: true, bg1: false, bg2: false, bg3: false },
-            currentColor: '#1a160a',
-            maxLimit: INITIAL_LIMIT,
-            clicksLeft: INITIAL_LIMIT,
-            lastDate: new Date().toDateString()
-        };
+let state = {
+    score: 0,
+    cp: 1,
+    pps: 0,
+    costs: { c1: 15, a1: 50, l1: 200 },
+    unlockedColors: { bg0: true, bg1: false, bg2: false, bg3: false },
+    currentColor: '#1a160a',
+    maxLimit: INITIAL_LIMIT,
+    clicksLeft: INITIAL_LIMIT,
+    lastDate: new Date().toDateString()
+};
 
-        const colors = { bg0: '#1a160a', bg1: '#004d26', bg2: '#003366', bg3: '#4a0066' };
-        const nugget = document.getElementById('nugget-btn');
+const colors = { bg0: '#1a160a', bg1: '#004d26', bg2: '#003366', bg3: '#4a0066' };
+const nugget = document.getElementById('nugget-btn');
 
-        // 2. ФУНКЦИИ ОБЛАЧНОГО СОХРАНЕНИЯ
-        async function loadData() {
-            try {
-                const { data, error } = await supabaseClient
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', userId)
-                    .single();
-
-                if (data) {
-                    state = {
-                        score: Number(data.score),
-                        cp: Number(data.click_power),
-                        pps: Number(data.pps),
-                        costs: data.costs,
-                        unlockedColors: data.unlocked_colors,
-                        currentColor: data.current_color,
-                        maxLimit: Number(data.max_limit),
-                        clicksLeft: Number(data.clicks_left),
-                        lastDate: data.last_date
-                    };
-                } else {
-                    await supabaseClient.from('profiles').insert([{ id: userId }]);
-                }
-            } catch (e) { console.error("Load error:", e); }
-            updateUI();
-        }
-
-        async function saveState() {
-            try {
-                await supabaseClient.from('profiles').upsert({
-                    id: userId,
-                    score: state.score,
-                    click_power: state.cp,
-                    pps: state.pps,
-                    costs: state.costs,
-                    unlocked_colors: state.unlockedColors,
-                    current_color: state.currentColor,
-                    max_limit: state.maxLimit,
-                    clicks_left: state.clicksLeft,
-                    last_date: state.lastDate
-                });
-            } catch (e) { console.error("Save error:", e); }
-        }
-
-        function checkDailyReset() {
-            const today = new Date().toDateString();
-            if (state.lastDate !== today) {
-                state.clicksLeft = state.maxLimit;
-                state.lastDate = today;
-                saveState();
-            }
-        }
-
-        function toggleShop() {
-            const shop = document.getElementById('shop');
-            const isOpen = shop.classList.toggle('open');
-            document.querySelector('.shop-header').textContent = isOpen ? '▼ ЗАКРЫТЬ ▼' : '▲ МАГАЗИН ▲';
-        }
-
-        function updateUI() {
-            checkDailyReset();
-            document.getElementById('score').textContent = Math.floor(state.score).toLocaleString();
-            document.getElementById('st-c').textContent = state.cp;
-            document.getElementById('st-a').textContent = state.pps;
-            document.getElementById('st-l').textContent = Math.max(0, Math.floor(state.clicksLeft));
-            document.getElementById('st-m').textContent = state.maxLimit;
-            document.getElementById('p-c1').textContent = state.costs.c1;
-            document.getElementById('p-a1').textContent = state.costs.a1;
-            document.getElementById('p-l1').textContent = state.costs.l1;
-            document.body.style.backgroundColor = state.currentColor;
-            document.getElementById('b-c1').disabled = state.score < state.costs.c1;
-            document.getElementById('b-a1').disabled = state.score < state.costs.a1;
-            document.getElementById('b-l1').disabled = state.score < state.costs.l1;
-
-            ['bg0', 'bg1', 'bg2', 'bg3'].forEach(id => {
-                const btn = document.getElementById('b-' + id);
-                const priceLabel = document.getElementById('p-' + id);
-                if (state.unlockedColors[id]) {
-                    if(priceLabel) priceLabel.style.display = 'none';
-                    const isActive = state.currentColor === colors[id];
-                    btn.textContent = isActive ? 'АКТИВЕН' : 'ВЫБРАТЬ';
-                    btn.className = isActive ? 'bought' : '';
-                    btn.disabled = isActive;
-                } else {
-                    const price = parseInt(document.getElementById('p-' + id).textContent);
-                    btn.disabled = state.score < price;
-                }
-            });
-        }
-
-        // --- ЛОГИКА КЛИКА ---
-        function handleInteraction(e) {
-            if (e.cancelable) e.preventDefault();
-            const now = Date.now();
-            if (now - lastClickTime < 45) return; 
-            lastClickTime = now;
-
-            const clientX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
-            const clientY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
-
-            if (state.clicksLeft <= 0) {
-                spawnPop(clientX, clientY, 'ЛИМИТ!', 'crit-text');
-                return;
-            }
-
-            nugget.classList.remove('click-active');
-            nugget.style.setProperty('--tilt', (Math.random() * 20 - 10) + 'deg');
-            void nugget.offsetWidth; 
-            nugget.classList.add('click-active');
-            setTimeout(() => nugget.classList.remove('click-active'), 50);
-
-            if(clickSound.paused || clickSound.currentTime > 0) {
-                clickSound.currentTime = 0;
-                clickSound.play().catch(() => {});
-            }
-
-            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
-
-            let isCrit = Math.random() < 0.1;
-            let val = isCrit ? state.cp * 5 : state.cp;
-            state.score += val;
-            state.clicksLeft--;
-
-            spawnPop(clientX, clientY, (isCrit ? '🔥 X5' : '+' + val), (isCrit ? 'crit-text' : 'norm-text'));
-            updateUI();
-        }
-
-        function spawnPop(x, y, txt, cls) {
-            const p = document.createElement('div');
-            p.className = 'pop ' + cls;
-            p.textContent = txt;
-            p.style.left = (x - 20) + 'px'; 
-            p.style.top = (y - 20) + 'px';
-            document.body.appendChild(p);
-            setTimeout(() => p.remove(), 600);
-        }
-
-        nugget.addEventListener('touchstart', handleInteraction, {passive: false});
-        nugget.addEventListener('mousedown', (e) => { if (e.button === 0) handleInteraction(e); });
-
-        // --- МАГАЗИН ---
-        document.getElementById('b-c1').onclick = () => buyUpgrade('c1', 'cp', 1, 1.6);
-        document.getElementById('b-a1').onclick = () => buyUpgrade('a1', 'pps', 1, 1.6);
-        document.getElementById('b-l1').onclick = () => buyUpgrade('l1', 'maxLimit', 500, 2.2);
-
-        function buyUpgrade(id, stat, add, mult) {
-            if(state.score >= state.costs[id]) {
-                state.score -= state.costs[id];
-                state[stat] += add;
-                state.costs[id] = Math.round(state.costs[id] * mult);
-                updateUI();
-                saveState();
-            }
-        }
-
-        ['bg0', 'bg1', 'bg2', 'bg3'].forEach(id => {
-            document.getElementById('b-' + id).onclick = () => {
-                const priceEl = document.getElementById('p-' + id);
-                const price = priceEl ? parseInt(priceEl.textContent) : 0;
-                if (state.unlockedColors[id]) {
-                    state.currentColor = colors[id];
-                } else if (state.score >= price) {
-                    state.score -= price; 
-                    state.unlockedColors[id] = true;
-                    state.currentColor = colors[id];
-                }
-                updateUI();
-                saveState();
-            };
-        });
-
-        // Авто-майнинг раз в секунду
-        setInterval(() => { 
-            if(state.pps > 0) { 
-                state.score += state.pps; 
-                document.getElementById('score').textContent = Math.floor(state.score).toLocaleString();
-            } 
-        }, 1000);
-
-        // --- ЗАМЕНИ ЭТИ ФУНКЦИИ В СВОЕМ СКРИПТЕ ---
-
-// 1. Исправленная загрузка
+// 2. РАБОТА С БАЗОЙ ДАННЫХ
 async function loadData() {
     try {
         const { data, error } = await supabaseClient
             .from('profiles')
             .select('*')
             .eq('id', userId)
-            .maybeSingle(); 
+            .maybeSingle();
 
         if (data) {
-            // Если игрок найден в базе
             state = {
                 score: Number(data.score),
                 cp: Number(data.click_power),
@@ -480,22 +296,16 @@ async function loadData() {
                 currentColor: data.current_color,
                 maxLimit: Number(data.max_limit),
                 clicksLeft: Number(data.clicks_left),
-                lastDate: data.last_date
+                lastDate: data.last_date || new Date().toDateString()
             };
-            console.log("Данные успешно подгружены для ID:", userId);
         } else {
-            // Если игрока еще нет (первый вход)
-            console.log("Новый игрок! Создаем профиль...");
-            state.lastDate = new Date().toDateString();
-            await saveState(); 
+            console.log("Создание нового профиля...");
+            await saveState();
         }
-    } catch (e) { 
-        console.error("Ошибка загрузки:", e); 
-    }
+    } catch (e) { console.error("Ошибка загрузки:", e); }
     updateUI();
 }
 
-// 2. Исправленное сохранение (используем upsert)
 async function saveState() {
     const dataToSave = {
         id: userId,
@@ -505,231 +315,161 @@ async function saveState() {
         costs: state.costs,
         unlocked_colors: state.unlockedColors,
         current_color: state.currentColor,
-        // 1. ИНИЦИАЛИЗАЦИЯ
-        const tg = window.Telegram.WebApp;
-        tg.ready();
-        tg.expand();
+        max_limit: state.maxLimit,
+        clicks_left: Math.floor(state.clicksLeft),
+        last_date: state.lastDate
+    };
 
-        const SUPABASE_URL = 'https://rabyyuzbpyerhoqdhrsj.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_3hR7ylEPMc1qBu6nuBdqsQ_9_w5ohOS'; // Твой ключ
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    try {
+        await supabaseClient.from('profiles').upsert(dataToSave, { onConflict: 'id' });
+        console.log("Прогресс сохранен в Supabase");
+    } catch (e) { console.error("Ошибка сохранения:", e); }
+}
 
-        // Получаем реальный ID пользователя Telegram или ставим заглушку для тестов
-        const userId = tg.initDataUnsafe?.user?.id?.toString() || "local_player";
+// 3. ЛОГИКА ИГРЫ
+function checkDailyReset() {
+    const today = new Date().toDateString();
+    if (state.lastDate !== today) {
+        state.clicksLeft = state.maxLimit;
+        state.lastDate = today;
+        saveState();
+    }
+}
 
-        const clickSound = new Audio('https://www.soundjay.com/buttons/sounds/button-37a.mp3');
-        clickSound.volume = 0.3;
+function updateUI() {
+    checkDailyReset();
+    document.getElementById('score').textContent = Math.floor(state.score).toLocaleString();
+    document.getElementById('st-c').textContent = state.cp;
+    document.getElementById('st-a').textContent = state.pps;
+    document.getElementById('st-l').textContent = Math.max(0, Math.floor(state.clicksLeft));
+    document.getElementById('st-m').textContent = state.maxLimit;
+    document.getElementById('p-c1').textContent = state.costs.c1;
+    document.getElementById('p-a1').textContent = state.costs.a1;
+    document.getElementById('p-l1').textContent = state.costs.l1;
+    document.body.style.backgroundColor = state.currentColor;
+    
+    document.getElementById('b-c1').disabled = state.score < state.costs.c1;
+    document.getElementById('b-a1').disabled = state.score < state.costs.a1;
+    document.getElementById('b-l1').disabled = state.score < state.costs.l1;
 
-        const INITIAL_LIMIT = 1000;
-        let lastClickTime = 0; 
-
-        let state = {
-            score: 0,
-            cp: 1,
-            pps: 0,
-            costs: { c1: 15, a1: 50, l1: 200 },
-            unlockedColors: { bg0: true, bg1: false, bg2: false, bg3: false },
-            currentColor: '#1a160a',
-            maxLimit: INITIAL_LIMIT,
-            clicksLeft: INITIAL_LIMIT,
-            lastDate: new Date().toDateString()
-        };
-
-        const colors = { bg0: '#1a160a', bg1: '#004d26', bg2: '#003366', bg3: '#4a0066' };
-        const nugget = document.getElementById('nugget-btn');
-
-        // 2. РАБОТА С БАЗОЙ ДАННЫХ
-        async function loadData() {
-            try {
-                const { data, error } = await supabaseClient
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', userId)
-                    .maybeSingle();
-
-                if (data) {
-                    state = {
-                        score: Number(data.score),
-                        cp: Number(data.click_power),
-                        pps: Number(data.pps),
-                        costs: data.costs,
-                        unlockedColors: data.unlocked_colors,
-                        currentColor: data.current_color,
-                        maxLimit: Number(data.max_limit),
-                        clicksLeft: Number(data.clicks_left),
-                        lastDate: data.last_date || new Date().toDateString()
-                    };
-                } else {
-                    // Если игрока нет, создаем его (первый запуск)
-                    await saveState();
-                }
-            } catch (e) { console.error("Ошибка загрузки:", e); }
-            updateUI();
+    ['bg0', 'bg1', 'bg2', 'bg3'].forEach(id => {
+        const btn = document.getElementById('b-' + id);
+        const priceLabel = document.getElementById('p-' + id);
+        if (state.unlockedColors[id]) {
+            if(priceLabel) priceLabel.style.display = 'none';
+            const isActive = state.currentColor === colors[id];
+            btn.textContent = isActive ? 'АКТИВЕН' : 'ВЫБРАТЬ';
+            btn.className = isActive ? 'bought' : '';
+            btn.disabled = isActive;
+        } else {
+            const price = parseInt(document.getElementById('p-' + id).textContent);
+            btn.disabled = state.score < price;
         }
+    });
+}
 
-        async function saveState() {
-            const dataToSave = {
-                id: userId,
-                score: Math.floor(state.score),
-                click_power: state.cp,
-                pps: state.pps,
-                costs: state.costs,
-                unlocked_colors: state.unlockedColors,
-                current_color: state.currentColor,
-                max_limit: state.maxLimit,
-                clicks_left: Math.floor(state.clicksLeft),
-                last_date: state.lastDate
-            };
+function handleInteraction(e) {
+    if (e.cancelable) e.preventDefault();
+    const now = Date.now();
+    if (now - lastClickTime < 45) return; 
+    lastClickTime = now;
 
-            try {
-                await supabaseClient.from('profiles').upsert(dataToSave, { onConflict: 'id' });
-            } catch (e) { console.error("Ошибка сохранения:", e); }
+    const clientX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
+    const clientY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+
+    if (state.clicksLeft <= 0) {
+        spawnPop(clientX, clientY, 'ЛИМИТ!', 'crit-text');
+        return;
+    }
+
+    nugget.classList.remove('click-active');
+    nugget.style.setProperty('--tilt', (Math.random() * 20 - 10) + 'deg');
+    void nugget.offsetWidth; 
+    nugget.classList.add('click-active');
+    
+    if(clickSound.paused || clickSound.currentTime > 0) {
+        clickSound.currentTime = 0;
+        clickSound.play().catch(() => {});
+    }
+
+    if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+
+    let isCrit = Math.random() < 0.1;
+    let val = isCrit ? state.cp * 5 : state.cp;
+    state.score += val;
+    state.clicksLeft--;
+
+    spawnPop(clientX, clientY, (isCrit ? '🔥 X5' : '+' + val), (isCrit ? 'crit-text' : 'norm-text'));
+    updateUI();
+}
+
+function spawnPop(x, y, txt, cls) {
+    const p = document.createElement('div');
+    p.className = 'pop ' + cls;
+    p.textContent = txt;
+    p.style.left = (x - 20) + 'px'; 
+    p.style.top = (y - 20) + 'px';
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 600);
+}
+
+function toggleShop() {
+    const shop = document.getElementById('shop');
+    const isOpen = shop.classList.toggle('open');
+    document.querySelector('.shop-header').textContent = isOpen ? '▼ ЗАКРЫТЬ ▼' : '▲ МАГАЗИН ▲';
+}
+
+function buyUpgrade(id, stat, add, mult) {
+    if(state.score >= state.costs[id]) {
+        state.score -= state.costs[id];
+        state[stat] += add;
+        state.costs[id] = Math.round(state.costs[id] * mult);
+        updateUI();
+        saveState(); 
+    }
+}
+
+// СОБЫТИЯ
+nugget.addEventListener('touchstart', handleInteraction, {passive: false});
+nugget.addEventListener('mousedown', (e) => { if (e.button === 0) handleInteraction(e); });
+
+document.getElementById('b-c1').onclick = () => buyUpgrade('c1', 'cp', 1, 1.6);
+document.getElementById('b-a1').onclick = () => buyUpgrade('a1', 'pps', 1, 1.6);
+document.getElementById('b-l1').onclick = () => buyUpgrade('l1', 'maxLimit', 500, 2.2);
+
+['bg0', 'bg1', 'bg2', 'bg3'].forEach(id => {
+    document.getElementById('b-' + id).onclick = () => {
+        const priceEl = document.getElementById('p-' + id);
+        const price = priceEl ? parseInt(priceEl.textContent) : 0;
+        if (state.unlockedColors[id]) {
+            state.currentColor = colors[id];
+        } else if (state.score >= price) {
+            state.score -= price; 
+            state.unlockedColors[id] = true;
+            state.currentColor = colors[id];
         }
+        updateUI();
+        saveState();
+    };
+});
 
-        // 3. ЛОГИКА ИГРЫ
-        function checkDailyReset() {
-            const today = new Date().toDateString();
-            if (state.lastDate !== today) {
-                state.clicksLeft = state.maxLimit;
-                state.lastDate = today;
-                saveState();
-            }
-        }
+// ТАЙМЕРЫ
+setInterval(() => { 
+    if(state.pps > 0) { 
+        state.score += state.pps; 
+        document.getElementById('score').textContent = Math.floor(state.score).toLocaleString();
+    } 
+}, 1000);
 
-        function toggleShop() {
-            const shop = document.getElementById('shop');
-            const isOpen = shop.classList.toggle('open');
-            document.querySelector('.shop-header').textContent = isOpen ? '▼ ЗАКРЫТЬ ▼' : '▲ МАГАЗИН ▲';
-        }
+setInterval(saveState, 15000); 
 
-        function updateUI() {
-            checkDailyReset();
-            document.getElementById('score').textContent = Math.floor(state.score).toLocaleString();
-            document.getElementById('st-c').textContent = state.cp;
-            document.getElementById('st-a').textContent = state.pps;
-            document.getElementById('st-l').textContent = Math.max(0, Math.floor(state.clicksLeft));
-            document.getElementById('st-m').textContent = state.maxLimit;
-            document.getElementById('p-c1').textContent = state.costs.c1;
-            document.getElementById('p-a1').textContent = state.costs.a1;
-            document.getElementById('p-l1').textContent = state.costs.l1;
-            document.body.style.backgroundColor = state.currentColor;
-            
-            document.getElementById('b-c1').disabled = state.score < state.costs.c1;
-            document.getElementById('b-a1').disabled = state.score < state.costs.a1;
-            document.getElementById('b-l1').disabled = state.score < state.costs.l1;
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveState();
+});
 
-            ['bg0', 'bg1', 'bg2', 'bg3'].forEach(id => {
-                const btn = document.getElementById('b-' + id);
-                const priceLabel = document.getElementById('p-' + id);
-                if (state.unlockedColors[id]) {
-                    if(priceLabel) priceLabel.style.display = 'none';
-                    const isActive = state.currentColor === colors[id];
-                    btn.textContent = isActive ? 'АКТИВЕН' : 'ВЫБРАТЬ';
-                    btn.className = isActive ? 'bought' : '';
-                    btn.disabled = isActive;
-                } else {
-                    const price = parseInt(document.getElementById('p-' + id).textContent);
-                    btn.disabled = state.score < price;
-                }
-            });
-        }
+// СТАРТ
+loadData();
 
-        function handleInteraction(e) {
-            if (e.cancelable) e.preventDefault();
-            const now = Date.now();
-            if (now - lastClickTime < 45) return; 
-            lastClickTime = now;
-
-            const clientX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
-            const clientY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
-
-            if (state.clicksLeft <= 0) {
-                spawnPop(clientX, clientY, 'ЛИМИТ!', 'crit-text');
-                return;
-            }
-
-            nugget.classList.remove('click-active');
-            nugget.style.setProperty('--tilt', (Math.random() * 20 - 10) + 'deg');
-            void nugget.offsetWidth; 
-            nugget.classList.add('click-active');
-            
-            if(clickSound.paused || clickSound.currentTime > 0) {
-                clickSound.currentTime = 0;
-                clickSound.play().catch(() => {});
-            }
-
-            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
-
-            let isCrit = Math.random() < 0.1;
-            let val = isCrit ? state.cp * 5 : state.cp;
-            state.score += val;
-            state.clicksLeft--;
-
-            spawnPop(clientX, clientY, (isCrit ? '🔥 X5' : '+' + val), (isCrit ? 'crit-text' : 'norm-text'));
-            updateUI();
-        }
-
-        function spawnPop(x, y, txt, cls) {
-            const p = document.createElement('div');
-            p.className = 'pop ' + cls;
-            p.textContent = txt;
-            p.style.left = (x - 20) + 'px'; 
-            p.style.top = (y - 20) + 'px';
-            document.body.appendChild(p);
-            setTimeout(() => p.remove(), 600);
-        }
-
-        nugget.addEventListener('touchstart', handleInteraction, {passive: false});
-        nugget.addEventListener('mousedown', (e) => { if (e.button === 0) handleInteraction(e); });
-
-        // УЛУЧШЕНИЯ
-        function buyUpgrade(id, stat, add, mult) {
-            if(state.score >= state.costs[id]) {
-                state.score -= state.costs[id];
-                state[stat] += add;
-                state.costs[id] = Math.round(state.costs[id] * mult);
-                updateUI();
-                saveState(); // Сразу сохраняем после покупки!
-            }
-        }
-
-        document.getElementById('b-c1').onclick = () => buyUpgrade('c1', 'cp', 1, 1.6);
-        document.getElementById('b-a1').onclick = () => buyUpgrade('a1', 'pps', 1, 1.6);
-        document.getElementById('b-l1').onclick = () => buyUpgrade('l1', 'maxLimit', 500, 2.2);
-
-        ['bg0', 'bg1', 'bg2', 'bg3'].forEach(id => {
-            document.getElementById('b-' + id).onclick = () => {
-                const priceEl = document.getElementById('p-' + id);
-                const price = priceEl ? parseInt(priceEl.textContent) : 0;
-                if (state.unlockedColors[id]) {
-                    state.currentColor = colors[id];
-                } else if (state.score >= price) {
-                    state.score -= price; 
-                    state.unlockedColors[id] = true;
-                    state.currentColor = colors[id];
-                }
-                updateUI();
-                saveState();
-            };
-        });
-
-        // АВТО-МАЙНИНГ
-        setInterval(() => { 
-            if(state.pps > 0) { 
-                state.score += state.pps; 
-                document.getElementById('score').textContent = Math.floor(state.score).toLocaleString();
-            } 
-        }, 1000);
-
-        // СОХРАНЕНИЕ
-        setInterval(saveState, 15000); // Каждые 15 секунд
-
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden') saveState();
-        });
-
-        // ЗАПУСК
-        loadData();
     </script>
 </body>
 </html>
