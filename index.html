@@ -97,7 +97,6 @@
             filter: drop-shadow(0 0 35px rgba(255,180,0,0.4));
             will-change: transform; 
             z-index: 5;
-            /* Начальное состояние плавности */
             transition: transform 0.1s ease-out;
         }
 
@@ -256,6 +255,7 @@
 
         const nugget = document.getElementById('nugget-btn');
         let lastClickTime = 0; 
+        let sessionClicks = 0; // Счетчик для частого сохранения
 
         let state = {
             score: 0,
@@ -294,7 +294,7 @@
                 } else {
                     await saveState();
                 }
-            } catch (e) { console.error("Ошибка загрузки:", e); }
+            } catch (e) { console.error("Load Error:", e); }
             updateUI();
         }
 
@@ -315,7 +315,8 @@
 
             try {
                 await supabaseClient.from('profiles').upsert(dataToSave, { onConflict: 'id' });
-            } catch (e) { console.error("Ошибка сохранения:", e); }
+                sessionClicks = 0; // Сбрасываем локальный счетчик после успешного сейва
+            } catch (e) { console.error("Save Error:", e); }
         }
 
         function toggleShop() {
@@ -366,10 +367,8 @@
             });
         }
 
-        // --- НОВАЯ ПЛАВНАЯ АНИМАЦИЯ ---
         function handleInteraction(e) {
             if (e.cancelable) e.preventDefault();
-            
             const now = Date.now();
             if (now - lastClickTime < 50) return; 
             lastClickTime = now;
@@ -382,14 +381,9 @@
                 return;
             }
 
-            // Рандомный наклон
             const tilt = (Math.random() * 20 - 10);
-            
-            // Сжатие (быстрое)
             nugget.style.transition = 'transform 0.05s ease-out';
             nugget.style.transform = `scale(0.85) rotate(${tilt}deg)`;
-
-            // Пружинистый возврат
             setTimeout(() => {
                 nugget.style.transition = 'transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
                 nugget.style.transform = 'scale(1) rotate(0deg)';
@@ -406,6 +400,12 @@
             let val = isCrit ? state.cp * 5 : state.cp;
             state.score += val;
             state.clicksLeft--;
+            
+            // Логика частого сохранения:
+            sessionClicks++;
+            if (sessionClicks >= 50) {
+                saveState(); // Сохраняем каждые 50 кликов
+            }
 
             spawnPop(clientX, clientY, (isCrit ? '🔥 X5' : '+' + val), (isCrit ? 'crit-text' : 'norm-text'));
             updateUI();
@@ -461,7 +461,7 @@
             } 
         }, 1000);
 
-        setInterval(saveState, 10000); 
+        setInterval(saveState, 8000); // Немного ускорили таймер до 8 сек
 
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') saveState();
