@@ -1,1 +1,536 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>NuggetCoin:Empire</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #ffb300; 
+            --accent: #ff6f00;  
+            --bg: #1a160a;      
+            --card: #252525;
+            --success: #4caf50;
+            --max-w: 480px;
+        }
 
+        * { 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent; 
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; position: fixed; touch-action: none;
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            background-color: var(--bg); color: white;
+            display: flex; justify-content: center;
+            transition: background-color 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .bg-glow {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 50%, rgba(255,180,0,0.2) 0%, rgba(0,0,0,0) 80%);
+            z-index: 1; pointer-events: none;
+        }
+
+        .main-wrapper {
+            width: 100%; max-width: var(--max-w); height: 100%;
+            display: flex; flex-direction: column; 
+            background: rgba(20, 20, 20, 0.4); 
+            border-left: 1px solid rgba(255,255,255,0.05); 
+            border-right: 1px solid rgba(255,255,255,0.05);
+            position: relative; z-index: 2;
+        }
+
+        .header {
+            background: linear-gradient(180deg, #222 0%, #111 100%);
+            padding: 15px 10px; text-align: center; border-bottom: 3px solid var(--accent);
+            flex-shrink: 0; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .score-container { 
+            font-size: clamp(28px, 9vw, 42px); 
+            font-weight: 900; 
+            color: var(--primary); 
+            text-shadow: 0 0 20px rgba(255,179,0,0.5); 
+        }
+
+        .stats-bar {
+            font-size: 11px; color: #aaa; margin-top: 5px;
+            display: flex; justify-content: center; gap: 12px;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .stats-bar span { color: #fff; font-weight: bold; }
+
+        .game-area {
+            flex: 1; display: flex; justify-content: center; align-items: center;
+            position: relative; overflow: hidden;
+        }
+
+   .rays {
+    position: absolute; 
+    width: 150%; /* Увеличили размер, чтобы края не обрезались */
+    height: 150%; 
+    /* Добавили размытие между 10% и 20% для мягкости */
+    background: repeating-conic-gradient(
+        from 0deg, 
+        rgba(255, 111, 0, 0.07) 0deg, 
+        rgba(255, 111, 0, 0.07) 10deg, 
+        transparent 20deg, 
+        transparent 30deg
+    );
+    /* Добавляем мягкое размытие по краям самих лучей */
+    filter: blur(20px); 
+    animation: spin 60s linear infinite; 
+    pointer-events: none;
+    opacity: 0.6; /* Сделали чуть прозрачнее для глубины */
+}
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        #nugget-btn {
+            width: clamp(100px, 28vh, 160px); 
+            cursor: pointer; 
+            filter: drop-shadow(0 0 35px rgba(255,180,0,0.4));
+            will-change: transform; z-index: 5;
+            transition: transform 0.05s ease-out;
+        }
+        
+        .click-active { 
+            transform: scale(0.85) rotate(var(--tilt)) !important; 
+        }
+
+        .shop {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: #1a1a1a; border-radius: 25px 25px 0 0;
+            border-top: 4px solid var(--accent); z-index: 10;
+            transform: translateY(calc(100% - 60px));
+            transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+            max-height: 75vh; display: flex; flex-direction: column;
+            box-shadow: 0 -15px 35px rgba(0,0,0,0.6);
+        }
+        .shop.open { transform: translateY(0); }
+
+        .shop-header {
+            padding: 20px; text-align: center; cursor: pointer;
+            font-weight: 800; color: var(--primary); text-transform: uppercase;
+            letter-spacing: 2px; font-size: 14px;
+        }
+
+        .shop-content { 
+            padding: 0 15px 40px 15px; overflow-y: auto; 
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .shop-section-title {
+            font-size: 11px; color: #666; text-transform: uppercase;
+            margin: 20px 0 10px 5px; font-weight: bold; letter-spacing: 1px;
+            border-bottom: 1px solid #333; padding-bottom: 5px;
+        }
+
+        .shop-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #252525; padding: 12px; border-radius: 16px;
+            margin-bottom: 10px; border: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .item-info { flex: 1; }
+        .item-name { font-size: 14px; font-weight: bold; color: #fff; }
+        .item-desc { font-size: 10px; color: #888; margin-top: 2px; }
+
+        .item-action { text-align: right; min-width: 80px; }
+        .price-tag { display: block; font-size: 13px; color: var(--primary); font-weight: 900; margin-bottom: 5px; }
+
+        button {
+            width: 100%; padding: 8px; border-radius: 10px;
+            font-weight: 800; font-size: 10px; text-transform: uppercase;
+            border: none; color: white; cursor: pointer;
+            background: linear-gradient(135deg, var(--accent), var(--primary));
+            box-shadow: 0 4px 0 #b34e00; transition: all 0.1s;
+        }
+        button:active { transform: translateY(2px); box-shadow: 0 2px 0 #b34e00; }
+        button:disabled { background: #333; box-shadow: 0 4px 0 #111; color: #666; opacity: 0.5; cursor: not-allowed; }
+        button.bought { background: var(--success); box-shadow: 0 4px 0 #2e7d32; }
+
+        .pop {
+            position: absolute; font-weight: 900; pointer-events: none;
+            animation: fly 0.6s ease-out forwards; z-index: 100;
+        }
+        @keyframes fly {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-100px) scale(1.3); opacity: 0; }
+        }
+        .norm-text { color: var(--primary); font-size: 22px; text-shadow: 2px 2px 0 black; }
+        .crit-text { color: #ff3d00; font-size: 30px; text-shadow: 0 0 10px rgba(255,0,0,0.5); }
+    </style>
+</head>
+<body>
+
+    <div class="bg-glow"></div>
+
+    <div class="main-wrapper">
+        <div class="header">
+            <div class="score-container" id="score">0</div>
+            <div class="stats-bar">
+                <div>КЛИК: <span id="st-c">1</span></div>
+                <div>АВТО: <span id="st-a">0</span>/С</div>
+                <div>ЛИМИТ: <span id="st-l">0</span>/<span id="st-m">1000</span></div>
+            </div>
+        </div>
+
+        <div class="game-area">
+            <div class="rays"></div>
+            <img src="https://i.ibb.co/bRRMdqKN/Picsart-26-01-05-02-00-08-830.png" id="nugget-btn" alt="Nugget">
+        </div>
+
+        <div class="shop" id="shop">
+            <div class="shop-header" onclick="toggleShop()">▲ МАГАЗИН ▲</div>
+            <div class="shop-content">
+                <div class="shop-section-title">Производство</div>
+                <div class="shop-item">
+                    <div class="item-info">
+                        <div class="item-name">Острый соус</div>
+                        <div class="item-desc">+1 к силе клика</div>
+                    </div>
+                    <div class="item-action">
+                        <span class="price-tag" id="p-c1">15</span>
+                        <button id="b-c1">УЛУЧШИТЬ</button>
+                    </div>
+                </div>
+                <div class="shop-item">
+                    <div class="item-info">
+                        <div class="item-name">Фритюрница</div>
+                        <div class="item-desc">+1 наггетс в сек.</div>
+                    </div>
+                    <div class="item-action">
+                        <span class="price-tag" id="p-a1">50</span>
+                        <button id="b-a1">КУПИТЬ</button>
+                    </div>
+                </div>
+                <div class="shop-item">
+                    <div class="item-info">
+                        <div class="item-name">Энергетик</div>
+                        <div class="item-desc">+500 к МАКС. лимиту</div>
+                    </div>
+                    <div class="item-action">
+                        <span class="price-tag" id="p-l1">200</span>
+                        <button id="b-l1">УЛУЧШИТЬ</button>
+                    </div>
+                </div>
+
+                <div class="shop-section-title">Оформление</div>
+                <div class="shop-item">
+                    <div class="item-info"><div class="item-name">Оригинал</div></div>
+                    <div class="item-action"><span class="price-tag" id="p-bg0">0</span><button id="b-bg0">ВЫБРАТЬ</button></div>
+                </div>
+                <div class="shop-item">
+                    <div class="item-info"><div class="item-name" style="color:#4caf50">Изумрудный Неон</div></div>
+                    <div class="item-action"><span class="price-tag" id="p-bg1">500</span><button id="b-bg1">КУПИТЬ</button></div>
+                </div>
+                <div class="shop-item">
+                    <div class="item-info"><div class="item-name" style="color:#2196f3">Морская Лазурь</div></div>
+                    <div class="item-action"><span class="price-tag" id="p-bg2">1500</span><button id="b-bg2">КУПИТЬ</button></div>
+                </div>
+                <div class="shop-item">
+                    <div class="item-info"><div class="item-name" style="color:#e040fb">Мистический Пурпур</div></div>
+                    <div class="item-action"><span class="price-tag" id="p-bg3">5000</span><button id="b-bg3">КУПИТЬ</button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. ИНИЦИАЛИЗАЦИЯ TELEGRAM И SUPABASE
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        const SUPABASE_URL = 'https://rabyyuzbpyerhoqdhrsj.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_3hR7ylEPMc1qBu6nuBdqsQ_9_w5ohOS';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const userId = tg.initDataUnsafe?.user?.id?.toString() || "local_player";
+
+        const clickSound = new Audio('https://www.soundjay.com/buttons/sounds/button-37a.mp3');
+        clickSound.volume = 0.3;
+
+        const INITIAL_LIMIT = 1000;
+        const LIMIT_STEP = 500;
+        let lastClickTime = 0; 
+
+        let state = {
+            score: 0,
+            cp: 1,
+            pps: 0,
+            costs: { c1: 15, a1: 50, l1: 200 },
+            unlockedColors: { bg0: true, bg1: false, bg2: false, bg3: false },
+            currentColor: '#1a160a',
+            maxLimit: INITIAL_LIMIT,
+            clicksLeft: INITIAL_LIMIT,
+            lastDate: new Date().toDateString()
+        };
+
+        const colors = { bg0: '#1a160a', bg1: '#004d26', bg2: '#003366', bg3: '#4a0066' };
+        const nugget = document.getElementById('nugget-btn');
+
+        // 2. ФУНКЦИИ ОБЛАЧНОГО СОХРАНЕНИЯ
+        async function loadData() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', userId)
+                    .single();
+
+                if (data) {
+                    state = {
+                        score: Number(data.score),
+                        cp: Number(data.click_power),
+                        pps: Number(data.pps),
+                        costs: data.costs,
+                        unlockedColors: data.unlocked_colors,
+                        currentColor: data.current_color,
+                        maxLimit: Number(data.max_limit),
+                        clicksLeft: Number(data.clicks_left),
+                        lastDate: data.last_date
+                    };
+                } else {
+                    await supabaseClient.from('profiles').insert([{ id: userId }]);
+                }
+            } catch (e) { console.error("Load error:", e); }
+            updateUI();
+        }
+
+        async function saveState() {
+            try {
+                await supabaseClient.from('profiles').upsert({
+                    id: userId,
+                    score: state.score,
+                    click_power: state.cp,
+                    pps: state.pps,
+                    costs: state.costs,
+                    unlocked_colors: state.unlockedColors,
+                    current_color: state.currentColor,
+                    max_limit: state.maxLimit,
+                    clicks_left: state.clicksLeft,
+                    last_date: state.lastDate
+                });
+            } catch (e) { console.error("Save error:", e); }
+        }
+
+        function checkDailyReset() {
+            const today = new Date().toDateString();
+            if (state.lastDate !== today) {
+                state.clicksLeft = state.maxLimit;
+                state.lastDate = today;
+                saveState();
+            }
+        }
+
+        function toggleShop() {
+            const shop = document.getElementById('shop');
+            const isOpen = shop.classList.toggle('open');
+            document.querySelector('.shop-header').textContent = isOpen ? '▼ ЗАКРЫТЬ ▼' : '▲ МАГАЗИН ▲';
+        }
+
+        function updateUI() {
+            checkDailyReset();
+            document.getElementById('score').textContent = Math.floor(state.score).toLocaleString();
+            document.getElementById('st-c').textContent = state.cp;
+            document.getElementById('st-a').textContent = state.pps;
+            document.getElementById('st-l').textContent = Math.max(0, Math.floor(state.clicksLeft));
+            document.getElementById('st-m').textContent = state.maxLimit;
+            document.getElementById('p-c1').textContent = state.costs.c1;
+            document.getElementById('p-a1').textContent = state.costs.a1;
+            document.getElementById('p-l1').textContent = state.costs.l1;
+            document.body.style.backgroundColor = state.currentColor;
+            document.getElementById('b-c1').disabled = state.score < state.costs.c1;
+            document.getElementById('b-a1').disabled = state.score < state.costs.a1;
+            document.getElementById('b-l1').disabled = state.score < state.costs.l1;
+
+            ['bg0', 'bg1', 'bg2', 'bg3'].forEach(id => {
+                const btn = document.getElementById('b-' + id);
+                const priceLabel = document.getElementById('p-' + id);
+                if (state.unlockedColors[id]) {
+                    if(priceLabel) priceLabel.style.display = 'none';
+                    const isActive = state.currentColor === colors[id];
+                    btn.textContent = isActive ? 'АКТИВЕН' : 'ВЫБРАТЬ';
+                    btn.className = isActive ? 'bought' : '';
+                    btn.disabled = isActive;
+                } else {
+                    const price = parseInt(document.getElementById('p-' + id).textContent);
+                    btn.disabled = state.score < price;
+                }
+            });
+        }
+
+        // --- ЛОГИКА КЛИКА ---
+        function handleInteraction(e) {
+            if (e.cancelable) e.preventDefault();
+            const now = Date.now();
+            if (now - lastClickTime < 45) return; 
+            lastClickTime = now;
+
+            const clientX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
+            const clientY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+
+            if (state.clicksLeft <= 0) {
+                spawnPop(clientX, clientY, 'ЛИМИТ!', 'crit-text');
+                return;
+            }
+
+            nugget.classList.remove('click-active');
+            nugget.style.setProperty('--tilt', (Math.random() * 20 - 10) + 'deg');
+            void nugget.offsetWidth; 
+            nugget.classList.add('click-active');
+            setTimeout(() => nugget.classList.remove('click-active'), 50);
+
+            if(clickSound.paused || clickSound.currentTime > 0) {
+                clickSound.currentTime = 0;
+                clickSound.play().catch(() => {});
+            }
+
+            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+
+            let isCrit = Math.random() < 0.1;
+            let val = isCrit ? state.cp * 5 : state.cp;
+            state.score += val;
+            state.clicksLeft--;
+
+            spawnPop(clientX, clientY, (isCrit ? '🔥 X5' : '+' + val), (isCrit ? 'crit-text' : 'norm-text'));
+            updateUI();
+        }
+
+        function spawnPop(x, y, txt, cls) {
+            const p = document.createElement('div');
+            p.className = 'pop ' + cls;
+            p.textContent = txt;
+            p.style.left = (x - 20) + 'px'; 
+            p.style.top = (y - 20) + 'px';
+            document.body.appendChild(p);
+            setTimeout(() => p.remove(), 600);
+        }
+
+        nugget.addEventListener('touchstart', handleInteraction, {passive: false});
+        nugget.addEventListener('mousedown', (e) => { if (e.button === 0) handleInteraction(e); });
+
+        // --- МАГАЗИН ---
+        document.getElementById('b-c1').onclick = () => buyUpgrade('c1', 'cp', 1, 1.6);
+        document.getElementById('b-a1').onclick = () => buyUpgrade('a1', 'pps', 1, 1.6);
+        document.getElementById('b-l1').onclick = () => buyUpgrade('l1', 'maxLimit', 500, 2.2);
+
+        function buyUpgrade(id, stat, add, mult) {
+            if(state.score >= state.costs[id]) {
+                state.score -= state.costs[id];
+                state[stat] += add;
+                state.costs[id] = Math.round(state.costs[id] * mult);
+                updateUI();
+                saveState();
+            }
+        }
+
+        ['bg0', 'bg1', 'bg2', 'bg3'].forEach(id => {
+            document.getElementById('b-' + id).onclick = () => {
+                const priceEl = document.getElementById('p-' + id);
+                const price = priceEl ? parseInt(priceEl.textContent) : 0;
+                if (state.unlockedColors[id]) {
+                    state.currentColor = colors[id];
+                } else if (state.score >= price) {
+                    state.score -= price; 
+                    state.unlockedColors[id] = true;
+                    state.currentColor = colors[id];
+                }
+                updateUI();
+                saveState();
+            };
+        });
+
+        // Авто-майнинг раз в секунду
+        setInterval(() => { 
+            if(state.pps > 0) { 
+                state.score += state.pps; 
+                document.getElementById('score').textContent = Math.floor(state.score).toLocaleString();
+            } 
+        }, 1000);
+
+        // --- ФИНАЛЬНАЯ СИСТЕМА СОХРАНЕНИЯ (ИСПРАВЛЕННАЯ) ---
+
+        async function saveState() {
+            const dataToSave = {
+                id: userId,
+                score: Math.floor(state.score),
+                click_power: state.cp,
+                pps: state.pps,
+                costs: state.costs,
+                unlocked_colors: state.unlockedColors,
+                current_color: state.currentColor,
+                max_limit: state.maxLimit,
+                clicks_left: Math.floor(state.clicksLeft),
+                last_date: state.lastDate
+            };
+
+            try {
+                // Используем стандартный fetch для сохранения, он надежнее в связке с Supabase REST
+                await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+                    method: 'PATCH', // PATCH обновляет только существующую строку
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify(dataToSave)
+                });
+                console.log("Auto-save done");
+            } catch (e) {
+                console.error("Save error:", e);
+            }
+        }
+
+        function saveOnExit() {
+            const body = JSON.stringify({
+                id: userId,
+                score: Math.floor(state.score),
+                click_power: state.cp,
+                pps: state.pps,
+                costs: state.costs,
+                unlocked_colors: state.unlockedColors,
+                current_color: state.currentColor,
+                max_limit: state.maxLimit,
+                clicks_left: Math.floor(state.clicksLeft),
+                last_date: state.lastDate
+            });
+
+            // Ключевой момент: keepalive + метод POST с заголовком merge-duplicates
+            navigator.sendBeacon(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, body); 
+            // Если sendBeacon не поддерживается, используем fetch
+            fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'resolution=merge-duplicates'
+                },
+                body: body,
+                keepalive: true
+            });
+        }
+
+        setInterval(saveState, 10000); // Сохраняем раз в 10 сек
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') saveState();
+        });
+
+        window.addEventListener('pagehide', saveOnExit); // Более надежно для мобильных браузеров
+
+        loadData(); // Самый важный вызов в конце
+    </script>
+</body>
+</html>
