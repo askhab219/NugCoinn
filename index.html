@@ -95,14 +95,10 @@
             width: clamp(100px, 28vh, 160px); 
             cursor: pointer; 
             filter: drop-shadow(0 0 35px rgba(255,180,0,0.4));
-            will-change: transform; z-index: 5;
-            transition: transform 0.1s ease-out; /* Плавное возвращение */
-        }
-        
-        /* Класс для клика */
-        .click-active { 
-            transform: scale(0.9) rotate(var(--tilt)) !important; 
-            transition: transform 0.05s ease-in !important;
+            will-change: transform; 
+            z-index: 5;
+            /* Начальное состояние плавности */
+            transition: transform 0.1s ease-out;
         }
 
         .shop {
@@ -245,7 +241,6 @@
     </div>
 
     <script>
-        // 1. ИНИЦИАЛИЗАЦИЯ
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
@@ -276,7 +271,6 @@
 
         const colors = { bg0: '#1a160a', bg1: '#004d26', bg2: '#003366', bg3: '#4a0066' };
 
-        // 2. ФУНКЦИИ СОХРАНЕНИЯ
         async function loadData() {
             try {
                 const { data, error } = await supabaseClient
@@ -321,12 +315,9 @@
 
             try {
                 await supabaseClient.from('profiles').upsert(dataToSave, { onConflict: 'id' });
-            } catch (e) {
-                console.error("Ошибка сохранения:", e);
-            }
+            } catch (e) { console.error("Ошибка сохранения:", e); }
         }
 
-        // 3. ИНТЕРФЕЙС И ЛОГИКА
         function toggleShop() {
             const shop = document.getElementById('shop');
             const isOpen = shop.classList.toggle('open');
@@ -368,17 +359,17 @@
                     btn.className = isActive ? 'bought' : '';
                     btn.disabled = isActive;
                 } else {
-                    const price = parseInt(document.getElementById('p-' + id).textContent);
+                    const priceEl = document.getElementById('p-' + id);
+                    const price = priceEl ? parseInt(priceEl.textContent) : 0;
                     btn.disabled = state.score < price;
                 }
             });
         }
 
-        // --- ИСПРАВЛЕННАЯ АНИМАЦИЯ КЛИКА ---
+        // --- НОВАЯ ПЛАВНАЯ АНИМАЦИЯ ---
         function handleInteraction(e) {
             if (e.cancelable) e.preventDefault();
             
-            // Защита от слишком быстрых кликов (анти-чит)
             const now = Date.now();
             if (now - lastClickTime < 50) return; 
             lastClickTime = now;
@@ -391,30 +382,26 @@
                 return;
             }
 
-            // Рандомный наклон для живости
-            const tilt = (Math.random() * 20 - 10) + 'deg';
-            nugget.style.setProperty('--tilt', tilt);
+            // Рандомный наклон
+            const tilt = (Math.random() * 20 - 10);
             
-            // Запуск анимации
-            nugget.classList.remove('click-active');
-            void nugget.offsetWidth; // Принудительная перерисовка
-            nugget.classList.add('click-active');
+            // Сжатие (быстрое)
+            nugget.style.transition = 'transform 0.05s ease-out';
+            nugget.style.transform = `scale(0.85) rotate(${tilt}deg)`;
 
-            // Удаление анимации через короткое время
+            // Пружинистый возврат
             setTimeout(() => {
-                nugget.classList.remove('click-active');
+                nugget.style.transition = 'transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                nugget.style.transform = 'scale(1) rotate(0deg)';
             }, 50);
 
-            // Звук
             if(clickSound.paused || clickSound.currentTime > 0) {
                 clickSound.currentTime = 0;
                 clickSound.play().catch(() => {});
             }
 
-            // Вибрация
             if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
 
-            // Расчет счета
             let isCrit = Math.random() < 0.1;
             let val = isCrit ? state.cp * 5 : state.cp;
             state.score += val;
@@ -444,7 +431,6 @@
             }
         }
 
-        // --- СОБЫТИЯ ---
         nugget.addEventListener('touchstart', handleInteraction, {passive: false});
         nugget.addEventListener('mousedown', (e) => { if (e.button === 0) handleInteraction(e); });
 
@@ -468,7 +454,6 @@
             };
         });
 
-        // Таймеры
         setInterval(() => { 
             if(state.pps > 0) { 
                 state.score += state.pps; 
@@ -476,13 +461,12 @@
             } 
         }, 1000);
 
-        setInterval(saveState, 10000); // Авто-сейв раз в 10 сек
+        setInterval(saveState, 10000); 
 
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') saveState();
         });
 
-        // СТАРТ
         loadData();
     </script>
 </body>
