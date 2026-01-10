@@ -255,7 +255,7 @@
 
         const nugget = document.getElementById('nugget-btn');
         let lastClickTime = 0; 
-        let saveTimeout = null; // Для умного сохранения
+        let saveTimeout = null; 
 
         let state = {
             score: 0,
@@ -318,10 +318,9 @@
             } catch (e) { console.error("Save Error:", e); }
         }
 
-        // Умное сохранение (через 1 сек после последнего клика)
         function triggerSmartSave() {
             if (saveTimeout) clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(saveState, 1000); 
+            saveTimeout = setTimeout(saveState, 800); // Умная пауза 0.8 сек перед сохранением
         }
 
         function toggleShop() {
@@ -406,7 +405,7 @@
             state.score += val;
             state.clicksLeft--;
             
-            triggerSmartSave(); // Пытаемся сохранить после каждого клика
+            triggerSmartSave(); 
 
             spawnPop(clientX, clientY, (isCrit ? '🔥 X5' : '+' + val), (isCrit ? 'crit-text' : 'norm-text'));
             updateUI();
@@ -455,14 +454,16 @@
             };
         });
 
+        // ИСПРАВЛЕННЫЙ ТАЙМЕР: Добавлено сохранение авто-дохода
         setInterval(() => { 
             if(state.pps > 0) { 
                 state.score += state.pps; 
                 document.getElementById('score').textContent = Math.floor(state.score).toLocaleString();
+                triggerSmartSave(); // Сохраняем каждое начисление авто-дохода
             } 
         }, 1000);
 
-        setInterval(saveState, 15000); // Редкий фоновый сейв
+        setInterval(saveState, 20000); 
 
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') saveState();
