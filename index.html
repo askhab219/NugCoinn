@@ -55,26 +55,7 @@
             color: black;
         }
 
-        /* СТИЛИ ДЛЯ ДОСТИЖЕНИЙ */
-        .ach-flag {
-            position: absolute;
-            right: 0;
-            top: 40%;
-            background: var(--primary);
-            color: black;
-            padding: 15px 5px;
-            border-radius: 12px 0 0 12px;
-            font-weight: 900;
-            font-size: 12px;
-            writing-mode: vertical-rl;
-            text-orientation: mixed;
-            cursor: pointer;
-            z-index: 100;
-            box-shadow: -2px 0 10px rgba(0,0,0,0.5);
-            transition: transform 0.2s;
-        }
-        .ach-flag:active { transform: scale(0.95) translateX(5px); }
-
+        /* ОБНОВЛЕННЫЕ СТИЛИ ДОСТИЖЕНИЙ */
         .ach-panel {
             position: absolute;
             right: 0;
@@ -92,6 +73,22 @@
         }
         .ach-panel.open { transform: translateX(0); }
 
+        .ach-flag {
+            position: absolute;
+            left: -35px; /* Выносим флажок за пределы панели слева */
+            top: 40%;
+            background: var(--primary);
+            color: black;
+            padding: 15px 5px;
+            border-radius: 12px 0 0 12px;
+            font-weight: 900;
+            font-size: 12px;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            cursor: pointer;
+            box-shadow: -4px 0 10px rgba(0,0,0,0.5);
+        }
+
         .ach-header {
             padding: 20px;
             background: #252525;
@@ -99,6 +96,7 @@
             color: var(--primary);
             text-align: center;
             border-bottom: 1px solid #333;
+            letter-spacing: 1px;
         }
 
         .ach-list { padding: 15px; overflow-y: auto; flex: 1; }
@@ -270,10 +268,9 @@
 
     <button class="manual-save-btn" id="manual-save" onclick="handleManualSave()">СОХРАНИТЬ</button>
 
-    <div class="ach-flag" onclick="toggleAch()">ДОСТИЖЕНИЯ</div>
-
     <div class="ach-panel" id="ach-panel">
-        <div class="ach-header" onclick="toggleAch()">▼ ЗАКРЫТЬ ▼</div>
+        <div class="ach-flag" id="ach-flag" onclick="toggleAch()">ДОСТИЖЕНИЯ</div>
+        <div class="ach-header">ВАШИ ДОСТИЖЕНИЯ</div>
         <div class="ach-list">
             <div class="ach-card" id="ach-1k">
                 <div class="ach-name">🍟 НОВИЧОК</div>
@@ -389,7 +386,7 @@
             maxLimit: 1000,
             clicksLeft: 1000,
             lastDate: new Date().toDateString(),
-            achievements: { ach1k: false, ach10k: false } // СОХРАНЕНИЕ ДОСТИЖЕНИЙ
+            achievements: { ach1k: false, ach10k: false }
         };
 
         const colors = { bg0: '#1a160a', bg1: '#004d26', bg2: '#003366', bg3: '#4a0066' };
@@ -434,7 +431,7 @@
                 max_limit: state.maxLimit,
                 clicks_left: Math.floor(state.clicksLeft),
                 last_date: state.lastDate,
-                achievements: state.achievements, // ПЕРЕДАЧА В БД
+                achievements: state.achievements,
                 updated_at: new Date().toISOString()
             };
 
@@ -472,7 +469,10 @@
         }
 
         function toggleAch() {
-            document.getElementById('ach-panel').classList.toggle('open');
+            const panel = document.getElementById('ach-panel');
+            const flag = document.getElementById('ach-flag');
+            const isOpen = panel.classList.toggle('open');
+            flag.textContent = isOpen ? 'ЗАКРЫТЬ' : 'ДОСТИЖЕНИЯ';
         }
 
         function checkAchievements() {
@@ -513,7 +513,6 @@
             document.getElementById('b-a1').disabled = state.score < state.costs.a1;
             document.getElementById('b-l1').disabled = state.score < state.costs.l1;
 
-            // Обновление карточек достижений
             if(state.achievements.ach1k) {
                 document.getElementById('ach-1k').classList.add('unlocked');
                 document.getElementById('ach-status-1k').textContent = 'РАЗБЛОКИРОВАНО';
