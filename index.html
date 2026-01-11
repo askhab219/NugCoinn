@@ -32,18 +32,17 @@
             transition: background-color 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Уменьшенная кнопка ручного сохранения */
         .manual-save-btn {
             position: absolute;
             top: 10px;
             right: 10px;
             z-index: 1000;
-            padding: 5px 10px; /* Уменьшено */
+            padding: 5px 10px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--primary);
             border-radius: 6px;
             color: var(--primary);
-            font-size: 9px; /* Уменьшено */
+            font-size: 9px;
             font-weight: bold;
             backdrop-filter: blur(5px);
             transition: all 0.2s;
@@ -56,6 +55,75 @@
             color: black;
         }
 
+        /* СТИЛИ ДЛЯ ДОСТИЖЕНИЙ */
+        .ach-flag {
+            position: absolute;
+            right: 0;
+            top: 40%;
+            background: var(--primary);
+            color: black;
+            padding: 15px 5px;
+            border-radius: 12px 0 0 12px;
+            font-weight: 900;
+            font-size: 12px;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            cursor: pointer;
+            z-index: 100;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.5);
+            transition: transform 0.2s;
+        }
+        .ach-flag:active { transform: scale(0.95) translateX(5px); }
+
+        .ach-panel {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 260px;
+            height: 100%;
+            background: #1a1a1a;
+            z-index: 101;
+            border-left: 3px solid var(--primary);
+            transform: translateX(100%);
+            transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.8);
+        }
+        .ach-panel.open { transform: translateX(0); }
+
+        .ach-header {
+            padding: 20px;
+            background: #252525;
+            font-weight: 900;
+            color: var(--primary);
+            text-align: center;
+            border-bottom: 1px solid #333;
+        }
+
+        .ach-list { padding: 15px; overflow-y: auto; flex: 1; }
+        
+        .ach-card {
+            background: #222;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #333;
+            opacity: 0.5;
+            transition: all 0.3s;
+        }
+        .ach-card.unlocked {
+            opacity: 1;
+            border-color: var(--success);
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .ach-name { font-size: 13px; font-weight: bold; color: var(--primary); }
+        .ach-desc { font-size: 10px; color: #888; margin-top: 3px; }
+        .ach-status { font-size: 9px; margin-top: 5px; font-weight: bold; color: #555; }
+        .unlocked .ach-status { color: var(--success); }
+
+        /* ОСТАЛЬНЫЕ СТИЛИ */
         .bg-glow {
             position: fixed; top: 0; left: 0;
             width: 100%; height: 100%;
@@ -76,7 +144,7 @@
             background: linear-gradient(180deg, #222 0%, #111 100%);
             padding: 15px 10px; text-align: center; border-bottom: 3px solid var(--accent);
             flex-shrink: 0; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            padding-top: calc(10px + env(safe-area-inset-top)); /* Адаптация под челки */
+            padding-top: calc(10px + env(safe-area-inset-top));
         }
 
         .score-container { 
@@ -90,7 +158,7 @@
             font-size: 11px; color: #aaa; margin-top: 5px;
             display: flex; justify-content: center; gap: 12px;
             text-transform: uppercase; letter-spacing: 1px;
-            flex-wrap: wrap; /* Для узких экранов */
+            flex-wrap: wrap;
         }
         .stats-bar span { color: #fff; font-weight: bold; }
 
@@ -102,8 +170,7 @@
 
         .rays {
             position: absolute; 
-            width: 150%; 
-            height: 150%; 
+            width: 150%; height: 150%; 
             background: repeating-conic-gradient(
                 from 0deg, 
                 rgba(255, 111, 0, 0.07) 0deg, 
@@ -119,7 +186,7 @@
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
         #nugget-btn {
-            width: clamp(120px, 35vh, 220px); /* Улучшен размер под высоту экрана */
+            width: clamp(120px, 35vh, 220px); 
             cursor: pointer; 
             filter: drop-shadow(0 0 35px rgba(255,180,0,0.4));
             will-change: transform; 
@@ -135,7 +202,7 @@
             transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
             max-height: 75vh; display: flex; flex-direction: column;
             box-shadow: 0 -15px 35px rgba(0,0,0,0.6);
-            padding-bottom: env(safe-area-inset-bottom); /* Адаптация под полоску внизу */
+            padding-bottom: env(safe-area-inset-bottom);
         }
         .shop.open { transform: translateY(0); }
 
@@ -192,7 +259,6 @@
         .norm-text { color: var(--primary); font-size: 22px; text-shadow: 2px 2px 0 black; }
         .crit-text { color: #ff3d00; font-size: 30px; text-shadow: 0 0 10px rgba(255,0,0,0.5); }
 
-        /* Для очень маленьких по высоте экранов */
         @media (max-height: 600px) {
             .score-container { font-size: 24px; }
             #nugget-btn { width: 140px; }
@@ -203,6 +269,24 @@
 <body>
 
     <button class="manual-save-btn" id="manual-save" onclick="handleManualSave()">СОХРАНИТЬ</button>
+
+    <div class="ach-flag" onclick="toggleAch()">ДОСТИЖЕНИЯ</div>
+
+    <div class="ach-panel" id="ach-panel">
+        <div class="ach-header" onclick="toggleAch()">▼ ЗАКРЫТЬ ▼</div>
+        <div class="ach-list">
+            <div class="ach-card" id="ach-1k">
+                <div class="ach-name">🍟 НОВИЧОК</div>
+                <div class="ach-desc">Набрать первые 1,000 очков</div>
+                <div class="ach-status" id="ach-status-1k">ЗАБЛОКИРОВАНО</div>
+            </div>
+            <div class="ach-card" id="ach-10k">
+                <div class="ach-name">👑 МАСТЕР НАГГЕТСОВ</div>
+                <div class="ach-desc">Достичь 10,000 очков</div>
+                <div class="ach-status" id="ach-status-10k">ЗАБЛОКИРОВАНО</div>
+            </div>
+        </div>
+    </div>
 
     <div class="bg-glow"></div>
 
@@ -304,7 +388,8 @@
             currentColor: '#1a160a',
             maxLimit: 1000,
             clicksLeft: 1000,
-            lastDate: new Date().toDateString()
+            lastDate: new Date().toDateString(),
+            achievements: { ach1k: false, ach10k: false } // СОХРАНЕНИЕ ДОСТИЖЕНИЙ
         };
 
         const colors = { bg0: '#1a160a', bg1: '#004d26', bg2: '#003366', bg3: '#4a0066' };
@@ -327,7 +412,8 @@
                         currentColor: data.current_color,
                         maxLimit: Number(data.max_limit),
                         clicksLeft: Number(data.clicks_left),
-                        lastDate: data.last_date || new Date().toDateString()
+                        lastDate: data.last_date || new Date().toDateString(),
+                        achievements: data.achievements || { ach1k: false, ach10k: false }
                     };
                 } else {
                     await saveState();
@@ -348,6 +434,7 @@
                 max_limit: state.maxLimit,
                 clicks_left: Math.floor(state.clicksLeft),
                 last_date: state.lastDate,
+                achievements: state.achievements, // ПЕРЕДАЧА В БД
                 updated_at: new Date().toISOString()
             };
 
@@ -361,13 +448,10 @@
             const originalText = btn.textContent;
             btn.textContent = '...';
             btn.disabled = true;
-
             await saveState();
-
             btn.textContent = 'ГОТОВО!';
             btn.style.borderColor = '#4caf50';
             btn.style.color = '#4caf50';
-
             setTimeout(() => {
                 btn.textContent = originalText;
                 btn.style.borderColor = 'var(--primary)';
@@ -387,17 +471,34 @@
             document.querySelector('.shop-header').textContent = isOpen ? '▼ ЗАКРЫТЬ ▼' : '▲ МАГАЗИН ▲';
         }
 
-        function checkDailyReset() {
+        function toggleAch() {
+            document.getElementById('ach-panel').classList.toggle('open');
+        }
+
+        function checkAchievements() {
+            let changed = false;
+            if (!state.achievements.ach1k && state.score >= 1000) {
+                state.achievements.ach1k = true;
+                changed = true;
+            }
+            if (!state.achievements.ach10k && state.score >= 10000) {
+                state.achievements.ach10k = true;
+                changed = true;
+            }
+            if (changed) {
+                updateUI();
+                saveState();
+            }
+        }
+
+        function updateUI() {
             const today = new Date().toDateString();
             if (state.lastDate !== today) {
                 state.clicksLeft = state.maxLimit;
                 state.lastDate = today;
                 saveState();
             }
-        }
 
-        function updateUI() {
-            checkDailyReset();
             document.getElementById('score').textContent = Math.floor(state.score).toLocaleString();
             document.getElementById('st-c').textContent = state.cp;
             document.getElementById('st-a').textContent = state.pps;
@@ -411,6 +512,16 @@
             document.getElementById('b-c1').disabled = state.score < state.costs.c1;
             document.getElementById('b-a1').disabled = state.score < state.costs.a1;
             document.getElementById('b-l1').disabled = state.score < state.costs.l1;
+
+            // Обновление карточек достижений
+            if(state.achievements.ach1k) {
+                document.getElementById('ach-1k').classList.add('unlocked');
+                document.getElementById('ach-status-1k').textContent = 'РАЗБЛОКИРОВАНО';
+            }
+            if(state.achievements.ach10k) {
+                document.getElementById('ach-10k').classList.add('unlocked');
+                document.getElementById('ach-status-10k').textContent = 'РАЗБЛОКИРОВАНО';
+            }
 
             ['bg0', 'bg1', 'bg2', 'bg3'].forEach(id => {
                 const btn = document.getElementById('b-' + id);
@@ -463,6 +574,7 @@
             state.score += val;
             state.clicksLeft--;
             
+            checkAchievements();
             triggerSmartSave(); 
 
             spawnPop(clientX, clientY, (isCrit ? '🔥 X5' : '+' + val), (isCrit ? 'crit-text' : 'norm-text'));
@@ -516,6 +628,7 @@
             if(state.pps > 0) { 
                 state.score += state.pps; 
                 document.getElementById('score').textContent = Math.floor(state.score).toLocaleString();
+                checkAchievements();
                 triggerSmartSave(); 
             } 
         }, 1000);
